@@ -1,0 +1,30 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="#FFFFFF">
+
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefresh" android:layout_width="match_parent" android:layout_height="match_parent">
+        <WebView android:id="@+id/webView" android:layout_width="match_parent" android:layout_height="match_parent" />
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+    <LinearLayout android:id="@+id/errorView" android:visibility="gone"
+        android:orientation="vertical" android:gravity="center" android:padding="28dp"
+        android:background="#F4F7F5" android:layout_width="match_parent" android:layout_height="match_parent">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="iSchool" android:textStyle="bold" android:textSize="28sp" android:textColor="#008751" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:text="Unable to connect. Check your internet connection and try again."
+            android:textSize="16sp" android:textAlignment="center" android:textColor="#34443C" />
+        <Button android:id="@+id/retryButton" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="20dp" android:text="Try Again" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/splashView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@drawable/ischool_splash"
+        android:scaleType="centerCrop"
+        android:contentDescription="iSchool splash screen"
+        android:background="#FFFFFF" />
+</FrameLayout>

@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.iSchool" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">@color/jamb_green</item>
+        <item name="colorPrimaryDark">@color/jamb_dark</item>
+        <item name="android:statusBarColor">@color/jamb_dark</item>
+        <item name="android:navigationBarColor">@color/jamb_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

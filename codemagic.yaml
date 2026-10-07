@@ -1,0 +1,22 @@
+workflows:
+  ischool-android:
+    name: iSchool Android APK
+    max_build_duration: 60
+
+    environment:
+      java: 17
+
+    scripts:
+      - name: Install Gradle 8.9
+        script: |
+          wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip -O /tmp/gradle-8.9-bin.zip
+          unzip -q /tmp/gradle-8.9-bin.zip -d /tmp
+          /tmp/gradle-8.9/bin/gradle --version
+
+      - name: Build iSchool Debug APK
+        script: |
+          /tmp/gradle-8.9/bin/gradle clean assembleDebug --stacktrace
+
+    artifacts:
+      - app/build/outputs/apk/debug/*.apk
+      - app/build/outputs/logs/*.log

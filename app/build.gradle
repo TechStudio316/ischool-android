@@ -1,0 +1,27 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'ng.com.schoolrms.ischool'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'ng.com.schoolrms.ischool'
+        minSdk 23
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0'
+    }
+}
+
+// Kotlin 1.8+ already includes the old JDK7/JDK8 stdlib extensions.
+// Exclude legacy transitive artifacts to prevent duplicate-class errors in Codemagic.
+configurations.configureEach {
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+}
+
+dependencies {
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+}
