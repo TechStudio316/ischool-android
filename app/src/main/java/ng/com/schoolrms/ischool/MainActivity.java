@@ -27,6 +27,9 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 public class MainActivity extends AppCompatActivity {
@@ -48,6 +51,18 @@ public class MainActivity extends AppCompatActivity {
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Keep the WebView/UI clear of Android system bars (gesture bar / 3-button navigation).
+        // Android 15 may lay app content edge-to-edge, so apply the real system-bar insets
+        // to the root container instead of using a fixed bottom padding.
+        View rootView = findViewById(R.id.rootView);
+        ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, windowInsets) -> {
+            Insets bars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            return windowInsets;
+        });
+        ViewCompat.requestApplyInsets(rootView);
+
         splashShownAt = SystemClock.elapsedRealtime();
 
         webView = findViewById(R.id.webView);
