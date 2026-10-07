@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
@@ -38,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int FILE_CHOOSER_REQUEST = 1001;
     private static final long MIN_SPLASH_DURATION_MS = 3000L;
     private String deviceId;
+    private String deviceName;
     private final Handler splashHandler = new Handler(Looper.getMainLooper());
     private long splashShownAt;
     private boolean splashDismissScheduled = false;
@@ -78,11 +80,23 @@ public class MainActivity extends AppCompatActivity {
             deviceId = UUID.randomUUID().toString();
             prefs.edit().putString("device_uuid", deviceId).apply();
         }
-        String deviceName = Build.MANUFACTURER + " " + Build.MODEL;
-        setLicenceCookie(cookies, "ischool_device_id", deviceId);
-        setLicenceCookie(cookies, "ischool_platform", "android");
-        setLicenceCookie(cookies, "ischool_device_name", deviceName);
-        cookies.flush();
+        deviceName = Build.MANUFACTURER + " " + Build.MODEL;
+        // Cookies are the authoritative transport because login is a normal HTML POST.
+        // Wait for WebView to confirm all three cookies before the first page is loaded.
+        AtomicInteger licenceCookiesPending = new AtomicInteger(3);
+        Runnable cookieReady = () -> {
+            if (licenceCookiesPending.decrementAndGet() == 0) {
+                cookies.flush();
+                if (savedInstanceState == null) {
+                    webView.loadUrl(HOME_URL, licenceHeaders());
+                } else {
+                    webView.restoreState(savedInstanceState);
+                }
+            }
+        };
+        setLicenceCookie(cookies, "ischool_device_id", deviceId, cookieReady);
+        setLicenceCookie(cookies, "ischool_platform", "android", cookieReady);
+        setLicenceCookie(cookies, "ischool_device_name", deviceName, cookieReady);
 
         webView.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -97,10 +111,20 @@ public class MainActivity extends AppCompatActivity {
                 return false;
             }
             @Override public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                // Re-assert first-party licence cookies before every navigation.
+                ensureLicenceCookies();
                 errorView.setVisibility(View.GONE);
                 webView.setVisibility(View.VISIBLE);
             }
             @Override public void onPageFinished(WebView view, String url) {
+                ensureLicenceCookies();
+                // Extra fallback: expose the same first-party values through document.cookie.
+                // This makes subsequent form POSTs carry the licence identity even on WebView
+                // versions that delay CookieManager persistence.
+                String js = "document.cookie='ischool_device_id=" + jsEscape(deviceId) + "; Path=/; Secure; SameSite=Lax';" +
+                        "document.cookie='ischool_platform=android; Path=/; Secure; SameSite=Lax';" +
+                        "document.cookie='ischool_device_name=" + jsEscape(deviceName) + "; Path=/; Secure; SameSite=Lax';";
+                view.evaluateJavascript(js, null);
                 swipeRefresh.setRefreshing(false);
                 if (splashView != null && splashView.getVisibility() == View.VISIBLE && !splashDismissScheduled) {
                     splashDismissScheduled = true;
@@ -145,7 +169,7 @@ public class MainActivity extends AppCompatActivity {
         swipeRefresh.setColorSchemeResources(R.color.jamb_green);
         swipeRefresh.setOnRefreshListener(webView::reload);
         swipeRefresh.setOnChildScrollUpCallback((parent, child) -> webView.getScrollY() > 0);
-        retryButton.setOnClickListener(v -> { errorView.setVisibility(View.GONE); webView.setVisibility(View.VISIBLE); webView.loadUrl(HOME_URL); });
+        retryButton.setOnClickListener(v -> { errorView.setVisibility(View.GONE); webView.setVisibility(View.VISIBLE); ensureLicenceCookies(); webView.loadUrl(HOME_URL, licenceHeaders()); });
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() {
@@ -153,12 +177,36 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        if (savedInstanceState == null) webView.loadUrl(HOME_URL); else webView.restoreState(savedInstanceState);
+        // Initial page load is intentionally started only after the licence-cookie callbacks above.
     }
 
-    private void setLicenceCookie(CookieManager cookies, String name, String value) {
+    private void setLicenceCookie(CookieManager cookies, String name, String value, Runnable done) {
         String safe = Uri.encode(value == null ? "" : value);
-        cookies.setCookie(HOME_URL, name + "=" + safe + "; Path=/; Secure; SameSite=Lax");
+        String cookie = name + "=" + safe + "; Domain=i.schoolrms.com.ng; Path=/; Max-Age=315360000; Secure; SameSite=Lax";
+        cookies.setCookie("https://i.schoolrms.com.ng/", cookie, success -> done.run());
+    }
+
+    private void ensureLicenceCookies() {
+        CookieManager cookies = CookieManager.getInstance();
+        String id = Uri.encode(deviceId == null ? "" : deviceId);
+        String name = Uri.encode(deviceName == null ? "" : deviceName);
+        cookies.setCookie("https://i.schoolrms.com.ng/", "ischool_device_id=" + id + "; Domain=i.schoolrms.com.ng; Path=/; Max-Age=315360000; Secure; SameSite=Lax");
+        cookies.setCookie("https://i.schoolrms.com.ng/", "ischool_platform=android; Domain=i.schoolrms.com.ng; Path=/; Max-Age=315360000; Secure; SameSite=Lax");
+        cookies.setCookie("https://i.schoolrms.com.ng/", "ischool_device_name=" + name + "; Domain=i.schoolrms.com.ng; Path=/; Max-Age=315360000; Secure; SameSite=Lax");
+        cookies.flush();
+    }
+
+    private java.util.Map<String, String> licenceHeaders() {
+        java.util.HashMap<String, String> headers = new java.util.HashMap<>();
+        headers.put("X-ISCHOOL-DEVICE-ID", deviceId == null ? "" : deviceId);
+        headers.put("X-ISCHOOL-PLATFORM", "android");
+        headers.put("X-ISCHOOL-DEVICE-NAME", deviceName == null ? "" : deviceName);
+        return headers;
+    }
+
+    private String jsEscape(String value) {
+        if (value == null) return "";
+        return value.replace("\\", "\\\\").replace("'", "\\'").replace("\r", " ").replace("\n", " ");
     }
 
     @Override protected void onSaveInstanceState(Bundle outState) { webView.saveState(outState); super.onSaveInstanceState(outState); }
